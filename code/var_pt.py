@@ -17,8 +17,11 @@ def concatenate_schedules(schedule_target_to_var, schedule_fixed_to_target):
     return schedule2.append(schedule1.copy())
 
 
-def update_schedule(reject_rates, schedule): pass
-def update_reference(samples): pass
+def update_schedule(reject_rates, schedule):
+    return schedule
+
+def update_reference(samples):
+    return 1
     
 ## Stabilized variational PT implementation!
 def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, log_fixed_ref):
