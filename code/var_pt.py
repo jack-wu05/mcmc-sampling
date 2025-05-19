@@ -2,7 +2,7 @@ import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
-import nrpt.py
+import nrpt
 
 def concatenate_paths(schedule_target_to_var, schedule_fixed_to_target, log_target, log_fixed_ref, current_var_distribution):
     path_target_to_var = path(schedule_target_to_var, log_target, current_ref_family_member)
@@ -17,9 +17,50 @@ def concatenate_schedules(schedule_target_to_var, schedule_fixed_to_target):
     return schedule2.append(schedule1.copy())
 
 
-def update_schedule(reject_rates, schedule):
-    return schedule
+def fritsch_carlson(points): pass
 
+
+def bisect(a, b, func, epsilon):
+    if b-a >= epsilon:
+        c = (a+b)/2
+        if func(c) == 0.0:
+            return c
+        elif func(a)*func(c) < 0:
+            b = c
+        else:
+            a = c
+        return bisect(a,b,func,epsilon)
+    else:
+        return (a+b)/2
+
+
+def interpolate(reject_rates, schedule):
+    length = len(schedule)
+    lambda_hat = np.zeros(length)
+    
+    for i in range(length):
+        j = 0
+        while j < i:
+            lambda_hat[i] += reject_rates[j]
+            
+    points = [(schedule[k], lambda_hat[k]) for k in range(length)]
+    
+    return fritsch_carlson(points)
+    
+
+def update_schedule(reject_rates, schedule):
+    length = len(schedule)
+    interpolation = interpolate(reject_rates, schedule)
+    lambda1 = interpolation(1)
+    
+    new_schedule = np.zeros(length)
+    for p in range(length):
+        func = lambda x: interpolation(x) - (lambda1 * p) / length
+        new_schedule[p] = bisect(0,1,func, epsilon=0.0001)
+    
+    return new_schedule
+    
+    
 def update_reference(samples):
     return 1
     
@@ -48,9 +89,7 @@ def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log
     return curr_state
         
         
-        
-        
-        
+
         
         
         
