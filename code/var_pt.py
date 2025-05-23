@@ -5,6 +5,24 @@ from scipy.interpolate import PchipInterpolator
 
 import nrpt
 
+sigma = 1
+
+def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
+    curr_point = initial_x
+    samples = np.zeros(num_iters)
+    
+    for i in range(num_iters):
+        new_point = np.random.normal(curr_point, 1, 1)
+        
+        p = np.min(1, gamma(new_point)/gamma(curr_point))
+    
+        if np.random.binomial(1, p):
+            new_point = curr_point
+    
+        samples[i] = curr_point
+        
+    return samples
+
 
 def bisect(a, b, func, epsilon):
     if b-a >= epsilon:
@@ -44,27 +62,25 @@ def update_schedule(reject_rates, schedule):
     
     
 def update_reference(samples):
-    return np.var(samples)
+    return (np.mean(samples), np.var(samples))
     
 ## Stabilized variational PT implementation!
 def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi):
-    schedule_target_to_var = np.linspace(0, 1, num_chains)
-    schedule_fixed_to_target = np.linspace(0, 1, num_chains)
+    schedule = np.linspace(0, 1, num_chains)
     curr_state = initial_state
     curr_phi = initial_phi
     
     for r in range(num_tuning_rounds):
         T = 2**r
         
-        full_path = concatenate_paths(schedule_target_to_var, schedule_fixed_to_target, log_target, log_fixed_ref, log_var_family(curr_phi))
-        full_schedule = concatenate_schedules(schedule_target_to_var, schedule_fixed_to_target)
+        current_var_distribution = log_var_family(curr_phi[0], curr_phi[1])
+        path = path(schedule, current_var_distribution, log_target)
         
-        result = nrpt.vanilla_NRPT(initial_state, full_schedule, full_path, T, gradients)
+        result = nrpt.vanilla_NRPT(initial_state, schedule, path, T, gradients)
         reject_rates = result["reject_rates"]
         samples = result["samples"]
         
-        schedule_target_to_var = update_schedule(reject_rates, schedule_target_to_var)
-        schedule_fixed_to_target = update_schedule(reject_rates, schedule_fixed_to_target)
+        schedule_to_var_target = update_schedule(reject_rates, schedule_target_to_var)
         
         curr_state = samples
         curr_phi = update_reference(samples)
@@ -74,21 +90,20 @@ def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log
 
 
 ## Toy example
-
-def log_var_family(phi):
-    return lambda x: -0.5 * (x**2 / phi)
+def log_var_family(sigma, mu):
+    return lambda x: -0.5 * ((x-mu) / sigma)**2
 
 log_target = lambda x: -x**2 / 2    ## N(0,1) target
 
 num_chains = 4
 initial_state = [0.1] * (2*num_chains)
 num_tuning_rounds = 3
-initial_phi = ()
+initial_phi = (0,0.5)
 
 
 
 samples = variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, log_fixed_reference, gradients)
-samples = [chain[3] for chain in samples]
+samples = [chain[num_chains-1] for chain in samples]
 print("The mean is:", np.mean(samples))
 print("The var is:", np.var(samples))
         
