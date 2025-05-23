@@ -131,18 +131,18 @@ def vanilla_NRPT(initial_state, betas, log_annealing_path, num_iterations, gradi
 
 
 
-# ## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
-# gradient = lambda x: -x
-# log_gamma = lambda x: -x**2 / 2
-# num_samples = 200
-# iid_samples = np.random.normal(size=num_samples)
+## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
+gradient = lambda x: -x
+log_gamma = lambda x: -x**2 / 2
+num_samples = 200
+iid_samples = np.random.normal(size=num_samples)
 
-# kernel_samples = np.zeros(num_samples)
-# for i in range(num_samples):
-#     kernel_samples[i] = hmc_exploration_kernel(iid_samples[i], 400, gradient, log_gamma)[-1]
+kernel_samples = np.zeros(num_samples)
+for i in range(num_samples):
+    kernel_samples[i] = hmc_exploration_kernel(iid_samples[i], 400, gradient, log_gamma)[-1]
 
-# ks_result = ks_2samp(iid_samples, kernel_samples)
-# print("Kernel test p-value:", ks_result.pvalue)
+ks_result = ks_2samp(iid_samples, kernel_samples)
+print("Kernel test p-value:", ks_result.pvalue)
 
 
 

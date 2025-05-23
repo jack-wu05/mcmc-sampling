@@ -5,18 +5,6 @@ from scipy.interpolate import PchipInterpolator
 
 import nrpt
 
-def concatenate_paths(schedule_target_to_var, schedule_fixed_to_target, log_target, log_fixed_ref, current_var_distribution):
-    path_target_to_var = nrpt.path(schedule_target_to_var, log_target, current_var_distribution)
-    path_fixed_to_target = nrpt.path(schedule_fixed_to_target, log_fixed_ref, log_target)
-    
-    return path_fixed_to_target + path_target_to_var.copy()
-    
-def concatenate_schedules(schedule_target_to_var, schedule_fixed_to_target):
-    schedule1 = 0.5 * schedule_target_to_var
-    schedule2 = 1 - 0.5 * schedule_fixed_to_target
-    
-    return np.concatenate((schedule2, schedule1.copy()))
-
 
 def bisect(a, b, func, epsilon):
     if b-a >= epsilon:
@@ -59,7 +47,7 @@ def update_reference(samples):
     return np.var(samples)
     
 ## Stabilized variational PT implementation!
-def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, log_fixed_ref, gradients):
+def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi):
     schedule_target_to_var = np.linspace(0, 1, num_chains)
     schedule_fixed_to_target = np.linspace(0, 1, num_chains)
     curr_state = initial_state
@@ -86,35 +74,23 @@ def variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log
 
 
 ## Toy example
-log_fixed_reference = lambda x: -2 * x**2     ## N(0,0.25) reference
-log_target = lambda x: -x**2 / 2    ## N(0,1) target
-
-num_chains = 4
-initial_state = [0.1] * (2*num_chains)
-num_tuning_rounds = 7
-initial_phi = 0.5
-
-gradients = [
-    lambda x: -4 * x,
-    lambda x: -2.5 * x,
-    lambda x: (-7/4) * x,
-    lambda x: -x,
-    lambda x: -0.4 * x,     ## PLACEHOLDER
-    lambda x: -0.3 * x,     ## PLACEHOLDER
-    lambda x: -0.2 * x,     ## PLACEHOLDER
-    lambda x: -0.1 * x      ## PLACEHOLDER
-]
 
 def log_var_family(phi):
     return lambda x: -0.5 * (x**2 / phi)
 
-def log_var_family_gradient(phi):
-    return lambda x: -x / phi
+log_target = lambda x: -x**2 / 2    ## N(0,1) target
+
+num_chains = 4
+initial_state = [0.1] * (2*num_chains)
+num_tuning_rounds = 3
+initial_phi = ()
 
 
-result = variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, log_fixed_reference, gradients)
-print("The mean is:", np.mean(result))
-print("The var is:", np.var(result))
+
+samples = variational_PT(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, log_fixed_reference, gradients)
+samples = [chain[3] for chain in samples]
+print("The mean is:", np.mean(samples))
+print("The var is:", np.var(samples))
         
         
 
