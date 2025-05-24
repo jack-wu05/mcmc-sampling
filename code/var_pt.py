@@ -1,5 +1,6 @@
 import numpy as np
 import warnings
+from scipy.stats import ks_2samp
 warnings.filterwarnings("ignore")
 from scipy.interpolate import PchipInterpolator
 
@@ -22,39 +23,6 @@ def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
         samples[i] = curr_point
         
     return samples
-
-
-def bisect(a, b, func, epsilon):
-    if b-a >= epsilon:
-        c = (a+b)/2
-        if func(c) == 0.0:
-            return c
-        elif func(a)*func(c) < 0:
-            b = c
-        else:
-            a = c
-        return bisect(a,b,func,epsilon)
-    else:
-        return (a+b)/2
-
-
-def interpolate(reject_rates, schedule):
-    length = len(schedule)
-    lambda_hat = np.zeros(length)
-    
-    for i in range(length):
-        lambda_hat[i] += sum(reject_rates[j] for j in range(i))
-    
-    schedule = np.array(schedule)
-    lambda_hat = np.array(lambda_hat)
-    
-    sorted_indices = np.argsort(schedule)
-    schedule = schedule[sorted_indices]
-    lambda_hat = lambda_hat[sorted_indices]
-    
-    print(schedule)
-    print(lambda_hat)
-    return PchipInterpolator(schedule,lambda_hat)
     
 
 def update_schedule(reject_rates, schedule):
@@ -80,6 +48,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
 
     samples = []
     reject_rates = np.zeros(num_distributions)
+    
     x_at_tminus1 = initial_state.copy()
     x_at_t = np.zeros(num_distributions)
 
@@ -113,22 +82,25 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
     curr_state = initial_state
     curr_phi = initial_phi
     
-    for r in range(num_tuning_rounds):
+    toReturn = []
+    
+    for r in range(1, num_tuning_rounds):
         T = 2**r
         
         curr_var = log_var_family(curr_phi[0], curr_phi[1])
         path = nrpt.path(schedule, curr_var, log_target)
         
-        result = vanilla_NRPT_with_RWMH(initial_state, schedule, path, T)
+        result = vanilla_NRPT_with_RWMH(curr_state, schedule, path, T)
         reject_rates = result["reject_rates"]
         samples = result["samples"]
-        samples = [chain[num_chains-1] for chain in samples]
+        
+        for chain in samples: toReturn.append(chain[-1])
         
         schedule = update_schedule(reject_rates, schedule)
-        curr_phi = update_reference(samples)
-        curr_state = samples
+        curr_phi = update_reference([chain[-1] for chain in samples])
+        curr_state = samples[-1]
     
-    return curr_state
+    return toReturn
 
 ## Toy example
 def log_var_family(mu, sigma):
@@ -138,15 +110,31 @@ log_target = lambda x: -x**2 / 2    ## N(0,1) target
 
 num_chains = 6
 initial_state = [0.1] * num_chains
-num_tuning_rounds = 7
+num_tuning_rounds = 10
 initial_phi = (0,0.5)
 
 
 samples = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
+print(samples)
 print("The mean is:", np.mean(samples))
 print("The var is:", np.var(samples))
         
-        
+    
+    
+    
+    
+
+## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
+# log_gamma = lambda x: -x**2 / 2
+# num_samples = 3000
+# iid_samples = np.random.normal(size=num_samples)
+
+# kernel_samples = np.zeros(num_samples)
+# for i in range(num_samples):
+#     kernel_samples[i] = RWMH_exploration_kernel(log_gamma, iid_samples[i], 4000)[-1]
+
+# ks_result = ks_2samp(iid_samples, kernel_samples)
+# print("Kernel test p-value:", ks_result.pvalue)
 
         
         

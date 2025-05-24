@@ -123,7 +123,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 #     lambda x: -x
 # ]    
 
-# result = vanilla_NRPT_with_HMC(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
+# result = vanilla_NRPT_with_RWMH(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
 # last_samples = [chain[-1] for chain in result["samples"]]
 # print("The mean is:", np.mean(last_samples))
 # print("GCB estimate is:", np.sum(result["reject_rates"]))
@@ -131,7 +131,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 
 
 
-## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
+# ## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
 # gradient = lambda x: -x
 # log_gamma = lambda x: -x**2 / 2
 # num_samples = 200
@@ -195,7 +195,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 #     lambda x: -1000 * x + 10000
 # ]    
 
-# result = vanilla_NRPT_with_HMC(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
+# result = vanilla_NRPT_with_RWMH(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
 # last_samples = [chain[-1] for chain in result["samples"]]
 # print("The mean is:", np.mean(last_samples))
 # print("GCB estimate is:", np.sum(result["reject_rates"]))
