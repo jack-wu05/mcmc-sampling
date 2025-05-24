@@ -7,7 +7,7 @@ from scipy.interpolate import PchipInterpolator
 import nrpt
 
 s = 1
-
+    
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
     samples = np.zeros(num_iters)
@@ -23,17 +23,44 @@ def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
         samples[i] = curr_point
         
     return samples
+
+
+def bisect(a, b, func, epsilon):
+    if b-a >= epsilon:
+        c = (a+b)/2
+        if func(c) == 0.0:
+            return c
+        elif func(a)*func(c) < 0:
+            b = c
+        else:
+            a = c
+        return bisect(a,b,func,epsilon)
+    else:
+        return (a+b)/2
+
+
+def interpolate(reject_rates, schedule):
+    N = len(schedule)
+    
+    lambda_hat = np.zeros(N)
+    for i in range(1,N):
+        lambda_hat[i] = lambda_hat[i-1] + reject_rates[i-1]
+    
+    return PchipInterpolator(schedule,lambda_hat)
     
 
 def update_schedule(reject_rates, schedule):
-    length = len(schedule)
+    N = len(schedule)
     
     interpolation = interpolate(reject_rates, schedule)
     lambda1 = interpolation(1)
     
-    new_schedule = np.zeros(length)
-    for p in range(length):
-        func = lambda x: interpolation(x) - (lambda1 * p) / length
+    new_schedule = np.zeros(N)
+    new_schedule[0] = 0.0
+    new_schedule[-1] = 1.0
+    
+    for p in range(1,N-1):
+        func = lambda x: interpolation(x) - (lambda1 * p) / (N-1)
         new_schedule[p] = bisect(0,1,func,epsilon=0.0001)
     
     return new_schedule
@@ -47,7 +74,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
     num_distributions = len(betas)
 
     samples = []
-    reject_rates = np.zeros(num_distributions)
+    reject_rates = np.zeros(num_distributions-1)
     
     x_at_tminus1 = initial_state.copy()
     x_at_t = np.zeros(num_distributions)
@@ -56,7 +83,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
         for init in range(num_distributions):
             log_gamma = log_annealing_path[init]
 
-            x_at_t[init] = RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 1)
+            x_at_t[init] = RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 3)[-1]
         
         temp_alpha_vector = np.zeros(num_distributions)
 
@@ -106,16 +133,15 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 def log_var_family(mu, sigma):
     return lambda x: -0.5 * ((x-mu) / sigma)**2
 
-log_target = lambda x: -x**2 / 2    ## N(0,1) target
+log_target = lambda x: -0.5 * ((x-10)/0.1)**2  ## N(10,0.01) target
 
-num_chains = 6
+num_chains = 5
 initial_state = [0.1] * num_chains
-num_tuning_rounds = 10
+num_tuning_rounds = 16
 initial_phi = (0,0.5)
 
 
 samples = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
-print(samples)
 print("The mean is:", np.mean(samples))
 print("The var is:", np.var(samples))
         

@@ -176,13 +176,13 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 # print(space)
 
 
-# ## Non-trivial use case for NRPT
+## Non-trivial use case for NRPT
 # log_reference = lambda x: -x**2 / 2     ## N(0,1) reference
 # log_target = lambda x: -500 * (x-10)**2     ## N(10,0.001) target
 # annealing_sched = [0, 0.01, 0.05, 0.15, 0.25, 0.40, 0.60, 0.80, 1]
 # anneal_path = path(annealing_sched, log_reference, log_target)
 # initial_state = [0.1] * len(annealing_sched)
-# num_iterations = 1000000 
+# num_iterations = 10000
 # gradients = [
 #     lambda x: -x,
 #     lambda x: -10.99 * x + 100,
@@ -195,7 +195,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 #     lambda x: -1000 * x + 10000
 # ]    
 
-# result = vanilla_NRPT_with_RWMH(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
+# result = vanilla_NRPT_with_HMC(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
 # last_samples = [chain[-1] for chain in result["samples"]]
 # print("The mean is:", np.mean(last_samples))
 # print("GCB estimate is:", np.sum(result["reject_rates"]))
