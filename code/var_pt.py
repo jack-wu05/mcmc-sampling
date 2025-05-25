@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 from scipy.interpolate import PchipInterpolator
 
 import nrpt
-
+    
 s = 1
     
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
@@ -61,8 +61,8 @@ def update_schedule(reject_rates, schedule):
     
     for p in range(1,N-1):
         func = lambda x: interpolation(x) - (lambda1 * p) / (N-1)
-        new_schedule[p] = bisect(0,1,func,epsilon=0.0001)
-    
+        new_schedule[p] = bisect(0,1,func,epsilon=0.0001)**2
+
     return new_schedule
 
     
@@ -121,13 +121,28 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         reject_rates = result["reject_rates"]
         samples = result["samples"]
         
-        for chain in samples: toReturn.append(chain[-1])
+        if r >= 5: 
+            for chain in samples: toReturn.append(chain[-1])
         
         schedule = update_schedule(reject_rates, schedule)
         curr_phi = update_reference([chain[-1] for chain in samples])
         curr_state = samples[-1]
     
     return toReturn
+
+
+## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
+# log_gamma = lambda x: -x**2 / 2
+# num_samples = 3000
+# iid_samples = np.random.normal(size=num_samples)
+
+# kernel_samples = np.zeros(num_samples)
+# for i in range(num_samples):
+#     kernel_samples[i] = RWMH_exploration_kernel(log_gamma, iid_samples[i], 4000)[-1]
+
+# ks_result = ks_2samp(iid_samples, kernel_samples)
+# print("Kernel test p-value:", ks_result.pvalue)
+
 
 ## Toy example
 def log_var_family(mu, sigma):
@@ -144,24 +159,6 @@ initial_phi = (0,0.5)
 samples = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
 print("The mean is:", np.mean(samples))
 print("The var is:", np.var(samples))
-        
-    
-    
-    
-    
-
-## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
-# log_gamma = lambda x: -x**2 / 2
-# num_samples = 3000
-# iid_samples = np.random.normal(size=num_samples)
-
-# kernel_samples = np.zeros(num_samples)
-# for i in range(num_samples):
-#     kernel_samples[i] = RWMH_exploration_kernel(log_gamma, iid_samples[i], 4000)[-1]
-
-# ks_result = ks_2samp(iid_samples, kernel_samples)
-# print("Kernel test p-value:", ks_result.pvalue)
-
         
         
         
