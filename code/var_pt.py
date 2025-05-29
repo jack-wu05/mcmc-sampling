@@ -3,11 +3,15 @@ import warnings
 from scipy.stats import ks_2samp
 warnings.filterwarnings("ignore")
 from scipy.interpolate import PchipInterpolator
+import pints
+import pints.toy
 
 import nrpt
-    
-s = 1
-    
+
+import matplotlib.pyplot as plt
+
+s = 2
+
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
     samples = np.zeros(num_iters)
@@ -44,7 +48,13 @@ def interpolate(reject_rates, schedule):
     
     lambda_hat = np.zeros(N)
     for i in range(1,N):
-        lambda_hat[i] = lambda_hat[i-1] + reject_rates[i-1]
+        lambda_hat[i] = sum(reject_rates[j] for j in range(i))
+    
+    # ## PLOT FOR DEBUGGING
+    # plt.figure()
+    # plt.plot(schedule, lambda_hat, marker='o')
+    # plt.grid(True)
+    # plt.show()
     
     return PchipInterpolator(schedule,lambda_hat)
     
@@ -61,8 +71,8 @@ def update_schedule(reject_rates, schedule):
     
     for p in range(1,N-1):
         func = lambda x: interpolation(x) - (lambda1 * p) / (N-1)
-        new_schedule[p] = bisect(0,1,func,epsilon=0.0001)**2
-
+        new_schedule[p] = bisect(0,1,func,epsilon=0.0001)
+    
     return new_schedule
 
     
@@ -83,13 +93,13 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
         for init in range(num_distributions):
             log_gamma = log_annealing_path[init]
 
-            x_at_t[init] = RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 3)[-1]
+            x_at_t[init] = RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 15)[-1]
         
         temp_alpha_vector = np.zeros(num_distributions)
 
         for i in range(num_distributions-1):
             temp_alpha_vector[i] = nrpt.alpha(log_annealing_path[i], log_annealing_path[i+1], x_at_t[i], x_at_t[i+1])
-            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i])/num_iterations
+            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / 100
             
             if ((i%2==0 and t%2==0) or (i%2==1 and t%2==1)) and (np.random.rand() <= temp_alpha_vector[i]):
                 x_at_t[i], x_at_t[i+1] = x_at_t[i+1], x_at_t[i]
@@ -128,7 +138,7 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         curr_phi = update_reference([chain[-1] for chain in samples])
         curr_state = samples[-1]
     
-    return toReturn
+    return toReturn, reject_rates
 
 
 ## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
@@ -148,15 +158,15 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 def log_var_family(mu, sigma):
     return lambda x: -0.5 * ((x-mu) / sigma)**2
 
-log_target = lambda x: -0.5 * ((x-10)/0.1)**2  ## N(10,0.01) target
+log_target = lambda x: -0.5 * ((x-10)/0.00001)**2  ## N(mu=10, std=0.00001) target
 
-num_chains = 5
+num_chains = 15
 initial_state = [0.1] * num_chains
-num_tuning_rounds = 16
+num_tuning_rounds = 9
 initial_phi = (0,0.5)
 
-
-samples = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
+samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
+print("Final reject rates:",rates)
 print("The mean is:", np.mean(samples))
 print("The var is:", np.var(samples))
         

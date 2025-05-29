@@ -79,7 +79,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
     num_distributions = len(betas)
 
     samples = []
-    reject_rates = np.zeros(num_distributions)
+    reject_rates = np.zeros(num_distributions-1)
     x_at_tminus1 = initial_state.copy()
     x_at_t = np.zeros(num_distributions)
 
@@ -94,11 +94,12 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 
         for i in range(num_distributions-1):
             temp_alpha_vector[i] = alpha(log_annealing_path[i], log_annealing_path[i+1], x_at_t[i], x_at_t[i+1])
-            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i])/num_iterations
+            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / num_iterations
             
             if ((i%2==0 and t%2==0) or (i%2==1 and t%2==1)) and (np.random.rand() <= temp_alpha_vector[i]):
                 x_at_t[i], x_at_t[i+1] = x_at_t[i+1], x_at_t[i]
 
+        print(temp_alpha_vector)
         x_at_tminus1 = x_at_t.copy()
         samples.append(x_at_tminus1.copy())
 
@@ -176,7 +177,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 # print(space)
 
 
-## Non-trivial use case for NRPT
+# # Non-trivial use case for NRPT
 # log_reference = lambda x: -x**2 / 2     ## N(0,1) reference
 # log_target = lambda x: -500 * (x-10)**2     ## N(10,0.001) target
 # annealing_sched = [0, 0.01, 0.05, 0.15, 0.25, 0.40, 0.60, 0.80, 1]
@@ -197,6 +198,7 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 
 # result = vanilla_NRPT_with_HMC(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
 # last_samples = [chain[-1] for chain in result["samples"]]
+# print("Reject rates:",result["reject_rates"])
 # print("The mean is:", np.mean(last_samples))
 # print("GCB estimate is:", np.sum(result["reject_rates"]))
 # print("Var is:", np.var(last_samples))
