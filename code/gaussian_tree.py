@@ -1,5 +1,9 @@
 import numpy as np
 import numpy.linalg as linalg
+import networkx as nx
+import pandas as pd
+import warnings
+warnings.filterwarnings("ignore")
 
 ## A variable in the dataset
 class Node:
@@ -7,18 +11,6 @@ class Node:
         self.label = label
         self.data = data
         self.edges = []
-
-## A relationship between two variables weighted by mutual information
-class Edge:
-    def __init__(self, node_to, node_from, weight):
-        self.node_to = node_to
-        self.node_from = node_from
-        self.weight = weight
-        node_to.edges.append(self)
-        node_from.edges.append(self)
-        
-## Find max spanning tree
-def kruskals(): pass
 
 ## Fit a Gaussian to each variable
 def fit_gaussian(data):
@@ -46,12 +38,63 @@ def mutual_info(node1, node2):
     
 ## Chow-Liu algorithm
 def tree_decomposition(samples):
-    list_of_nodes = [Node(i, samples.iloc[:,i]) for i in range(samples.shape[1])]
+    nodes = [Node("X" + str(i), np.stack(samples.iloc[:,i])) for i in range(samples.shape[1])]
     
-    n = len(list_of_nodes)
+    G = nx.Graph()
+    
+    n = len(nodes)
     for i in range(n):
         for j in range(i+1,n):
+            node1 = nodes[i]
+            node2 = nodes[j]
             
+            G.add_edge(node1.label, node2.label, weight= -mutual_info(node1,node2))
     
+    edges = list(G.edges(data=True))
     
+    print()
+    print("All edges:", edges)
+    print()
+    print("Num all edges:", len(edges))
+    print()
     
+    mst = nx.minimum_spanning_tree(G, algorithm='kruskal')
+    edges = list(mst.edges(data=True))
+    
+    print("Selected edges:", edges)
+    print()
+    print("Num selected edges:", len(edges))
+    print()
+            
+
+def generate_data(num_samples):
+    data = []
+    
+    for i in range(num_samples):
+        sample = []
+        
+        mean0 = [0,0]
+        cov0 = [[1,2],[3,4]]
+        sample0 = np.random.multivariate_normal(mean0,cov0,size=1)[0]
+        sample.append(sample0)
+        
+        cov1 = [[5,6],[7,8]]
+        sample1 = np.random.multivariate_normal(sample0,cov1,size=1)[0]
+        sample.append(sample1)
+    
+        cov2 = [[9,10],[11,12]]
+        sample2 = np.random.multivariate_normal(sample0,cov2,size=1)[0]
+        sample.append(sample2)
+    
+        cov3 = [[13,14],[15,16]]
+        sample3 = np.random.multivariate_normal(sample2,cov3,size=1)[0]
+        sample.append(sample3)
+        
+        data.append(sample)
+    
+    return data
+        
+
+data = generate_data(50)
+df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
+tree_decomposition(df)
