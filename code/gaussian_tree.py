@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
+global_nodes = NULL
+
 ## A variable in the dataset
 class Node:
     def __init__(self, label, data):
@@ -15,14 +17,15 @@ class Node:
 
 ## Fit a Gaussian to each variable
 def fit_gaussian(data):
+    mean = np.mean(data, axis=0)
     X = data - np.mean(data, axis=0)
     
-    return (X.T @ X) / (X.shape[0]-1)
+    return mean, (X.T @ X) / (X.shape[0]-1)
 
 ## Compute mutual information weight
 def mutual_info(node1, node2):
-    Sigma_XX = fit_gaussian(node1.data)
-    Sigma_YY = fit_gaussian(node2.data)
+    mean_XX, Sigma_XX = fit_gaussian(node1.data)
+    mean_YY, Sigma_YY = fit_gaussian(node2.data)
 
     X = node1.data - np.mean(node1.data,axis=0)
     Y = node2.data - np.mean(node2.data,axis=0)
@@ -39,7 +42,8 @@ def mutual_info(node1, node2):
     
 ## Chow-Liu algorithm
 def tree_decomposition(samples):
-    nodes = [Node("X" + str(i), np.stack(samples.iloc[:,i])) for i in range(samples.shape[1])]
+    nodes = [Node(str(i), np.stack(samples.iloc[:,i])) for i in range(samples.shape[1])]
+    global_nodes = nodes.copy()
     
     G = nx.Graph()
     
@@ -67,7 +71,7 @@ def tree_decomposition(samples):
     print("Num selected edges:", len(edges))
     print()
     
-    return mst
+    return mst, list(mst.vertices(data=True))
 
 
 def generate_data(num_samples):
@@ -97,14 +101,53 @@ def generate_data(num_samples):
     
     return data
 
+def directed_graph(tree, kept_nodes):
+    root = kept_nodes[0]
+    
+    x = nx.DiGraph()
+    for parent, child in nx.bfs_edges(tree, root):
+       x.add_edge(parent,child)
+    
+    return x
+    
+    
+    
+def unnormalized_gaussian(mu, Sigma):
+    return lambda x: -0.5 * (x-mu).T @ linalg.inv(Sigma) @ (x-mu)
+
+def unnormalized_cond_gaussian(node1, node2):
+    mean_XX, Sigma_XX = fit_gaussian(node1.data)    
+    mean_YY, Sigma_YY = fit_gaussian(node2.data)
+    
+    X = node1.data - np.mean(node1.data,axis=0)
+    Y = node2.data - np.mean(node2.data,axis=0)
+    
+    Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
+    Sigma_YX = Sigma_XY.T
+    
+    new_mu = lambda y: mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (y - mean_YY)
+    new_Sigma = Sigma_XX - Sigma_XY @ linalg.inv(Sigma_YY) @ Sigma_YX
+    
+    return lambda x, y: -0.5 * (x - new_mu(y)).T @ linalg.inv(new_Sigma) @ (x - new_mu(y))
+    
+    
+    
+def tree_pdf(directed_tree, kept_nodes):
+    root = int(kept_nodes[0])
+    
+    pdf = lambda x: 1
+    pdf *= global_nodes[]
+    
+    
+    
+    
+
 data = generate_data(50)
 df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-tree = tree_decomposition(df)
-
-directed_tree = nx.DiGraph()
-for parent, child in nx.bfs_edges(tree, 'X0'):
-    directed_tree.add_edge(parent,child)
-print(list(directed_tree.edges()))
+tree, kept_nodes = tree_decomposition(df)
+directed_tree = directed_graph(tree, kept_nodes)
+pdf = tree_pdf(directed_tree, kept_nodes)
+print(pdf)
 
 
 
