@@ -2,6 +2,7 @@ import numpy as np
 import numpy.linalg as linalg
 import networkx as nx
 import pandas as pd
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -65,7 +66,9 @@ def tree_decomposition(samples):
     print()
     print("Num selected edges:", len(edges))
     print()
-            
+    
+    return mst
+
 
 def generate_data(num_samples):
     data = []
@@ -93,8 +96,23 @@ def generate_data(num_samples):
         data.append(sample)
     
     return data
-        
 
 data = generate_data(50)
 df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-tree_decomposition(df)
+tree = tree_decomposition(df)
+
+directed_tree = nx.DiGraph()
+for parent, child in nx.bfs_edges(tree, 'X0'):
+    directed_tree.add_edge(parent,child)
+print(list(directed_tree.edges()))
+
+
+
+
+
+
+
+
+
+
+
