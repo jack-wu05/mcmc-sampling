@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 
-global_nodes = NULL
+np.random.seed(1)
+
+global_nodes = []
 
 ## A variable in the dataset
 class Node:
@@ -15,12 +17,14 @@ class Node:
         self.data = data
         self.edges = []
 
+
 ## Fit a Gaussian to each variable
 def fit_gaussian(data):
     mean = np.mean(data, axis=0)
     X = data - np.mean(data, axis=0)
     
     return mean, (X.T @ X) / (X.shape[0]-1)
+
 
 ## Compute mutual information weight
 def mutual_info(node1, node2):
@@ -40,8 +44,11 @@ def mutual_info(node1, node2):
     
     return 0.5 * np.log((linalg.det(Sigma_XX) * linalg.det(Sigma_YY))/linalg.det(Sigma))
     
+
 ## Chow-Liu algorithm
 def tree_decomposition(samples):
+    global global_nodes
+    
     nodes = [Node(str(i), np.stack(samples.iloc[:,i])) for i in range(samples.shape[1])]
     global_nodes = nodes.copy()
     
@@ -71,7 +78,7 @@ def tree_decomposition(samples):
     print("Num selected edges:", len(edges))
     print()
     
-    return mst, list(mst.vertices(data=True))
+    return mst
 
 
 def generate_data(num_samples):
@@ -101,21 +108,22 @@ def generate_data(num_samples):
     
     return data
 
-def directed_graph(tree, kept_nodes):
-    root = kept_nodes[0]
+
+def directed_graph(tree):
+    root = '0'
     
     x = nx.DiGraph()
     for parent, child in nx.bfs_edges(tree, root):
        x.add_edge(parent,child)
     
     return x
-    
-    
-    
-def unnormalized_gaussian(mu, Sigma):
-    return lambda x: -0.5 * (x-mu).T @ linalg.inv(Sigma) @ (x-mu)
 
-def unnormalized_cond_gaussian(node1, node2):
+
+def unnormalized_gaussian(mu, Sigma):
+    return lambda x: np.exp(-0.5 * (x-mu).T @ linalg.inv(Sigma) @ (x-mu))
+
+
+def unnormalized_cond_gaussian(node1, node2, val1, val2):
     mean_XX, Sigma_XX = fit_gaussian(node1.data)    
     mean_YY, Sigma_YY = fit_gaussian(node2.data)
     
@@ -128,34 +136,31 @@ def unnormalized_cond_gaussian(node1, node2):
     new_mu = lambda y: mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (y - mean_YY)
     new_Sigma = Sigma_XX - Sigma_XY @ linalg.inv(Sigma_YY) @ Sigma_YX
     
-    return lambda x, y: -0.5 * (x - new_mu(y)).T @ linalg.inv(new_Sigma) @ (x - new_mu(y))
+    return np.exp(-0.5 * (val1 - new_mu(val2)).T @ linalg.inv(new_Sigma) @ (val1 - new_mu(val2)))
     
     
+def tree_pdf(directed_tree, input_x):
+    global global_nodes
     
-def tree_pdf(directed_tree, kept_nodes):
-    root = int(kept_nodes[0])
+    pdf = 1
+    temp1, temp2 = fit_gaussian(global_nodes[0].data)
+    pdf *= unnormalized_gaussian(temp1, temp2)(input_x[0])
     
-    pdf = lambda x: 1
-    pdf *= global_nodes[]
+    for edge in list(directed_tree.edges()):
+        parent = int(edge[0])
+        child = int(edge[1])
+        
+        pdf *= unnormalized_cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
     
-    
-    
-    
+    return pdf
+
 
 data = generate_data(50)
 df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-tree, kept_nodes = tree_decomposition(df)
-directed_tree = directed_graph(tree, kept_nodes)
-pdf = tree_pdf(directed_tree, kept_nodes)
-print(pdf)
+tree = tree_decomposition(df)
+directed_tree = directed_graph(tree)
 
-
-
-
-
-
-
-
-
+input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
+print(tree_pdf(directed_tree, input_x))
 
 
