@@ -65,22 +65,26 @@ def tree_decomposition(samples):
     edges = list(G.edges(data=True))
     
     print()
-    print("All edges:", edges)
-    print()
     print("Num all edges:", len(edges))
+    print("All edges:", edges)
     print()
     
     mst = nx.minimum_spanning_tree(G, algorithm='kruskal')
     edges = list(mst.edges(data=True))
     
-    print("Selected edges:", edges)
-    print()
     print("Num selected edges:", len(edges))
+    print("Selected edges:", edges)
     print()
     
     return mst
 
 
+## Generate 2D data vectors from an already Gaussian and already tree-like dependency structure:
+##  X0 --> X2 --> X3
+##   |
+##   V
+##  X1
+## The dependency is in the mean parameter; the covariances are arbitrarily fixed
 def generate_data(num_samples):
     data = []
     
@@ -109,6 +113,7 @@ def generate_data(num_samples):
     return data
 
 
+## Assign edge directions pointing away from the arbitrarily fixed root X0
 def directed_graph(tree):
     root = '0'
     
@@ -119,10 +124,12 @@ def directed_graph(tree):
     return x
 
 
+## Construct pdf of a multivariate Gaussian
 def unnormalized_gaussian(mu, Sigma):
     return lambda x: np.exp(-0.5 * (x-mu).T @ linalg.inv(Sigma) @ (x-mu))
 
 
+## Construct conditional pdf of two multivariate Gaussians: f(node1 = val1 | node2 = val2)
 def unnormalized_cond_gaussian(node1, node2, val1, val2):
     mean_XX, Sigma_XX = fit_gaussian(node1.data)    
     mean_YY, Sigma_YY = fit_gaussian(node2.data)
@@ -139,6 +146,7 @@ def unnormalized_cond_gaussian(node1, node2, val1, val2):
     return np.exp(-0.5 * (val1 - new_mu(val2)).T @ linalg.inv(new_Sigma) @ (val1 - new_mu(val2)))
     
     
+## Evaluate approximate Chow-Liu joint density at input_x
 def tree_pdf(directed_tree, input_x):
     global global_nodes
     
@@ -155,7 +163,10 @@ def tree_pdf(directed_tree, input_x):
     return pdf
 
 
-data = generate_data(50)
+
+## Toy example
+num_samples = 50
+data = generate_data(num_samples)
 df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
 tree = tree_decomposition(df)
 directed_tree = directed_graph(tree)
