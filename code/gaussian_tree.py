@@ -4,6 +4,7 @@ import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
+from scipy.stats import multivariate_normal
 warnings.filterwarnings("ignore")
 
 np.random.seed(1)
@@ -21,7 +22,7 @@ class Node:
 ## Fit a Gaussian to each variable
 def fit_gaussian(data):
     mean = np.mean(data, axis=0)
-    X = data - np.mean(data, axis=0)
+    X = data - mean
     
     return mean, (X.T @ X) / (X.shape[0]-1)
 
@@ -92,19 +93,19 @@ def generate_data(num_samples):
         sample = []
         
         mean0 = [0,0]
-        cov0 = [[1,2],[3,4]]
+        cov0 = [[1,0],[0,1]]
         sample0 = np.random.multivariate_normal(mean0,cov0,size=1)[0]
         sample.append(sample0)
         
-        cov1 = [[5,6],[7,8]]
+        cov1 = [[2,1],[1,1]]
         sample1 = np.random.multivariate_normal(sample0,cov1,size=1)[0]
         sample.append(sample1)
     
-        cov2 = [[9,10],[11,12]]
+        cov2 = [[10,6],[6,9]]
         sample2 = np.random.multivariate_normal(sample0,cov2,size=1)[0]
         sample.append(sample2)
     
-        cov3 = [[13,14],[15,16]]
+        cov3 = [[5,8],[8,20]]
         sample3 = np.random.multivariate_normal(sample2,cov3,size=1)[0]
         sample.append(sample3)
         
@@ -124,11 +125,6 @@ def directed_graph(tree):
     return x
 
 
-## Construct pdf of a multivariate Gaussian
-def unnormalized_gaussian(mu, Sigma):
-    return lambda x: np.exp(-0.5 * (x-mu).T @ linalg.inv(Sigma) @ (x-mu))
-
-
 ## Construct conditional pdf of two multivariate Gaussians: f(node1 = val1 | node2 = val2)
 def unnormalized_cond_gaussian(node1, node2, val1, val2):
     mean_XX, Sigma_XX = fit_gaussian(node1.data)    
@@ -140,10 +136,11 @@ def unnormalized_cond_gaussian(node1, node2, val1, val2):
     Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
     Sigma_YX = Sigma_XY.T
     
-    new_mu = lambda y: mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (y - mean_YY)
+    new_mu = mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (val2 - mean_YY)
     new_Sigma = Sigma_XX - Sigma_XY @ linalg.inv(Sigma_YY) @ Sigma_YX
     
-    return np.exp(-0.5 * (val1 - new_mu(val2)).T @ linalg.inv(new_Sigma) @ (val1 - new_mu(val2)))
+    return multivariate_normal.pdf(val1, mean=new_mu, cov=new_Sigma)
+
     
     
 ## Evaluate approximate Chow-Liu joint density at input_x
@@ -152,7 +149,7 @@ def tree_pdf(directed_tree, input_x):
     
     pdf = 1
     temp1, temp2 = fit_gaussian(global_nodes[0].data)
-    pdf *= unnormalized_gaussian(temp1, temp2)(input_x[0])
+    pdf *= multivariate_normal.pdf(input_x[0], temp1, temp2)
     
     for edge in list(directed_tree.edges()):
         parent = int(edge[0])
@@ -163,15 +160,14 @@ def tree_pdf(directed_tree, input_x):
     return pdf
 
 
+#### Toy example 1
+# num_samples = 2000
+# data = generate_data(num_samples)
+# df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
+# tree = tree_decomposition(df)
+# directed_tree = directed_graph(tree)
 
-## Toy example
-num_samples = 50
-data = generate_data(num_samples)
-df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-tree = tree_decomposition(df)
-directed_tree = directed_graph(tree)
-
-input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
-print(tree_pdf(directed_tree, input_x))
+# input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
+# print(tree_pdf(directed_tree, input_x))
 
 
