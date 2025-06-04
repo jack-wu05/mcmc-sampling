@@ -86,7 +86,7 @@ def tree_decomposition(samples):
 ##   V
 ##  X1
 ## The dependency is in the mean parameter; the covariances are arbitrarily fixed
-def generate_data(num_samples):
+def generate_data1(num_samples):
     data = []
     
     for i in range(num_samples):
@@ -126,7 +126,7 @@ def directed_graph(tree):
 
 
 ## Construct conditional pdf of two multivariate Gaussians: f(node1 = val1 | node2 = val2)
-def unnormalized_cond_gaussian(node1, node2, val1, val2):
+def cond_gaussian(node1, node2, val1, val2):
     mean_XX, Sigma_XX = fit_gaussian(node1.data)    
     mean_YY, Sigma_YY = fit_gaussian(node2.data)
     
@@ -141,8 +141,7 @@ def unnormalized_cond_gaussian(node1, node2, val1, val2):
     
     return multivariate_normal.pdf(val1, mean=new_mu, cov=new_Sigma)
 
-    
-    
+
 ## Evaluate approximate Chow-Liu joint density at input_x
 def tree_pdf(directed_tree, input_x):
     global global_nodes
@@ -155,19 +154,46 @@ def tree_pdf(directed_tree, input_x):
         parent = int(edge[0])
         child = int(edge[1])
         
-        pdf *= unnormalized_cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
+        pdf *= cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
     
     return pdf
 
 
-#### Toy example 1
-# num_samples = 2000
-# data = generate_data(num_samples)
-# df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-# tree = tree_decomposition(df)
-# directed_tree = directed_graph(tree)
+## Compute KL-divergence for dataset 1
+def kl_divergence(data, tree):
+    global global_nodes
+    
+    kl = 0
+    N = len(data)
+    
+    for sample in data:
+        x0, x1, x2, x3 = sample
+        
+        p = 1
+        p *= multivariate_normal.pdf(x0, [0,0], [[1,0],[0,1]])
+        p *= cond_gaussian(global_nodes[1], global_nodes[0], x1, x0)
+        p *= cond_gaussian(global_nodes[2], global_nodes[0], x2, x0)
+        p *= cond_gaussian(global_nodes[3], global_nodes[2], x3, x2)
+        
+        q = tree_pdf(tree, sample)
+        
+        kl += np.log(p / q)
+        
+    return  kl / N
 
-# input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
-# print(tree_pdf(directed_tree, input_x))
 
+        
+
+### Toy example 1
+num_samples = 2000
+data = generate_data1(num_samples)
+df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
+tree = tree_decomposition(df)
+directed_tree = directed_graph(tree)
+
+input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
+print("Density at input_x:", tree_pdf(directed_tree, input_x))
+print()
+print("KL(p||q):", kl_divergence(data, directed_tree))
+print()
 
