@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 from scipy.stats import multivariate_normal
+from scipy.stats import norm
+
 warnings.filterwarnings("ignore")
 
 np.random.seed(1)
@@ -21,36 +23,50 @@ class Node:
 
 ## Fit a Gaussian to each variable
 def fit_gaussian(data):
-    mean = np.mean(data, axis=0)
-    X = data - mean
+    data = np.asarray(data)
     
-    return mean, (X.T @ X) / (X.shape[0]-1)
+    mean = np.mean(data)
+    cov = np.var(data)
+    
+    # mean = np.mean(data, axis=0)
+    # X = data - mean
+    # cov = (X.T @ X) / (X.shape[0]-1)
+    
+    return mean, cov
 
 
 ## Compute mutual information weight
 def mutual_info(node1, node2):
-    mean_XX, Sigma_XX = fit_gaussian(node1.data)
-    mean_YY, Sigma_YY = fit_gaussian(node2.data)
+    X = np.asarray(node1.data)
+    Y = np.asarray(node2.data)
+    
+    rho = np.corrcoef(X, Y)[0, 1]
+    
+    return -0.5 * np.log(1 - rho**2)
+    
+    # mean_XX, Sigma_XX = fit_gaussian(node1.data)
+    # mean_YY, Sigma_YY = fit_gaussian(node2.data)
 
-    X = node1.data - np.mean(node1.data,axis=0)
-    Y = node2.data - np.mean(node2.data,axis=0)
+    # X = node1.data - np.mean(node1.data,axis=0)
+    # Y = node2.data - np.mean(node2.data,axis=0)
     
-    Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
-    Sigma_YX = Sigma_XY.T
+    # Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
+    # Sigma_YX = Sigma_XY.T
     
-    Sigma = np.block([
-        [Sigma_XX, Sigma_XY],
-        [Sigma_YX, Sigma_YY]
-    ])
+    # Sigma = np.block([
+    #     [Sigma_XX, Sigma_XY],
+    #     [Sigma_YX, Sigma_YY]
+    # ])
     
-    return 0.5 * np.log((linalg.det(Sigma_XX) * linalg.det(Sigma_YY))/linalg.det(Sigma))
+    # return 0.5 * np.log((linalg.det(Sigma_XX) * linalg.det(Sigma_YY))/linalg.det(Sigma))
     
 
 ## Chow-Liu algorithm
 def tree_decomposition(samples):
     global global_nodes
     
-    nodes = [Node(str(i), np.stack(samples.iloc[:,i])) for i in range(samples.shape[1])]
+    samples = np.array(samples)
+    nodes = [Node(str(i), np.array(list(samples[:,i]))) for i in range(samples.shape[1])]
     global_nodes = nodes.copy()
     
     G = nx.Graph()
@@ -65,17 +81,17 @@ def tree_decomposition(samples):
     
     edges = list(G.edges(data=True))
     
-    print()
-    print("Num all edges:", len(edges))
-    print("All edges:", edges)
-    print()
+    # print()
+    # print("Num all edges:", len(edges))
+    # print("All edges:", edges)
+    # print()
     
     mst = nx.minimum_spanning_tree(G, algorithm='kruskal')
     edges = list(mst.edges(data=True))
     
-    print("Num selected edges:", len(edges))
-    print("Selected edges:", edges)
-    print()
+    # print("Num selected edges:", len(edges))
+    # print("Selected edges:", edges)
+    # print()
     
     return mst
 
@@ -90,26 +106,12 @@ def generate_data1(num_samples):
     data = []
     
     for i in range(num_samples):
-        sample = []
+        sample0 = np.random.normal(0,1)
+        sample1 = np.random.normal(sample0,2)
+        sample2 = np.random.normal(sample0,5)
+        sample3 = np.random.normal(sample2,3)
         
-        mean0 = [0,0]
-        cov0 = [[1,0],[0,1]]
-        sample0 = np.random.multivariate_normal(mean0,cov0,size=1)[0]
-        sample.append(sample0)
-        
-        cov1 = [[2,1],[1,1]]
-        sample1 = np.random.multivariate_normal(sample0,cov1,size=1)[0]
-        sample.append(sample1)
-    
-        cov2 = [[10,6],[6,9]]
-        sample2 = np.random.multivariate_normal(sample0,cov2,size=1)[0]
-        sample.append(sample2)
-    
-        cov3 = [[5,8],[8,20]]
-        sample3 = np.random.multivariate_normal(sample2,cov3,size=1)[0]
-        sample.append(sample3)
-        
-        data.append(sample)
+        data.append([sample0, sample1, sample2, sample3])
     
     return data
 
@@ -125,21 +127,37 @@ def directed_graph(tree):
     return x
 
 
-## Construct conditional pdf of two multivariate Gaussians: f(node1 = val1 | node2 = val2)
+## Construct conditional pdf of two Normals: f(node1 = val1 | node2 = val2)
 def cond_gaussian(node1, node2, val1, val2):
-    mean_XX, Sigma_XX = fit_gaussian(node1.data)    
-    mean_YY, Sigma_YY = fit_gaussian(node2.data)
+    X = np.asarray(node1.data)
+    Y = np.asarray(node2.data)
     
-    X = node1.data - np.mean(node1.data,axis=0)
-    Y = node2.data - np.mean(node2.data,axis=0)
+    mean_X = np.mean(X)
+    mean_Y = np.mean(Y)
+    var_X = np.var(X)
+    var_Y = np.var(Y)
     
-    Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
-    Sigma_YX = Sigma_XY.T
+    rho = np.corrcoef(X,Y)[0,1]
     
-    new_mu = mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (val2 - mean_YY)
-    new_Sigma = Sigma_XX - Sigma_XY @ linalg.inv(Sigma_YY) @ Sigma_YX
+    new_mu = mean_X + rho * (np.sqrt(var_X) / np.sqrt(var_Y)) * (val2 - mean_Y)
+    new_sigma = (1-rho)**2 * var_X
     
-    return multivariate_normal.pdf(val1, mean=new_mu, cov=new_Sigma)
+    return norm.pdf(val1, new_mu, new_sigma)
+    
+    
+    # mean_XX, Sigma_XX = fit_gaussian(node1.data)    
+    # mean_YY, Sigma_YY = fit_gaussian(node2.data)
+    
+    # X = node1.data - np.mean(node1.data,axis=0)
+    # Y = node2.data - np.mean(node2.data,axis=0)
+    
+    # Sigma_XY = (X.T @ Y) / (X.shape[0]-1)
+    # Sigma_YX = Sigma_XY.T
+
+    # new_mu = mean_XX + Sigma_XY @ linalg.inv(Sigma_YY) @ (val2 - mean_YY)
+    # new_Sigma = Sigma_XX - Sigma_XY @ linalg.inv(Sigma_YY) @ Sigma_YX
+    
+    # return multivariate_normal.pdf(val1, mean=new_mu, cov=new_Sigma)
 
 
 ## Evaluate approximate Chow-Liu joint density at input_x
@@ -148,7 +166,8 @@ def tree_pdf(directed_tree, input_x):
     
     pdf = 1
     temp1, temp2 = fit_gaussian(global_nodes[0].data)
-    pdf *= multivariate_normal.pdf(input_x[0], temp1, temp2)
+    # pdf *= multivariate_normal.pdf(input_x[0], temp1, temp2)
+    pdf *= norm.pdf(input_x[0], temp1, temp2)
     
     for edge in list(directed_tree.edges()):
         parent = int(edge[0])
@@ -159,41 +178,18 @@ def tree_pdf(directed_tree, input_x):
     return pdf
 
 
-## Compute KL-divergence for dataset 1
-def kl_divergence(data, tree):
-    global global_nodes
-    
-    kl = 0
-    N = len(data)
-    
-    for sample in data:
-        x0, x1, x2, x3 = sample
-        
-        p = 1
-        p *= multivariate_normal.pdf(x0, [0,0], [[1,0],[0,1]])
-        p *= cond_gaussian(global_nodes[1], global_nodes[0], x1, x0)
-        p *= cond_gaussian(global_nodes[2], global_nodes[0], x2, x0)
-        p *= cond_gaussian(global_nodes[3], global_nodes[2], x3, x2)
-        
-        q = tree_pdf(tree, sample)
-        
-        kl += np.log(p / q)
-        
-    return  kl / N
-
-
-        
-
 ### Toy example 1
-num_samples = 2000
-data = generate_data1(num_samples)
-df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-tree = tree_decomposition(df)
-directed_tree = directed_graph(tree)
+# num_samples = 50
+# data = generate_data1(num_samples)
+# df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
+# tree = tree_decomposition(df)
+# directed_tree = directed_graph(tree)
+# input_x = np.array([0,0,0,0])
+# print("Density at input_x:", tree_pdf(directed_tree, input_x))
+# print()
 
-input_x = np.array([[0,0],[0,0],[0,0],[0,0]])
-print("Density at input_x:", tree_pdf(directed_tree, input_x))
-print()
-print("KL(p||q):", kl_divergence(data, directed_tree))
-print()
 
+## pdf hypothesis test
+## put this into variational PT
+## compare diagnostics
+## N(0,1) no tune, mean-field, dense, tree
