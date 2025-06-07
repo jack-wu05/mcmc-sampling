@@ -18,9 +18,7 @@ s = 2
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
     d = 4
-    
     samples = np.zeros((num_iters, d))
-    print(samples)
     
     for i in range(num_iters):
         new_point = np.zeros(d)
@@ -98,7 +96,7 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         if r >= 5:
             cl_tree = gaussian_tree.directed_graph(
                 gaussian_tree.tree_decomposition(np.array([chain[-1] for chain in samples]))
-                )    
+            )    
             curr_reference = lambda x: gaussian_tree.tree_pdf(cl_tree, x)
         
         curr_state = samples[-1]
@@ -120,10 +118,24 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 
 
 ### Toy example
-
 d = 4
-log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=np.zeros(d), cov=np.eye(d))
+mean = [1,2,3,4]
+cov = np.array([
+    [1.0,  0.8,  0.5,  0.3],
+    [0.8,  1.5,  0.6,  0.4],
+    [0.5,  0.6,  2.0,  0.7],
+    [0.3,  0.4,  0.7,  1.8]
+])
+log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=mean, cov=cov)
 
+
+samples = []
+for i in range(100000):
+    sample = np.random.multivariate_normal(mean=mean, cov=cov)
+    samples.append(sample)
+print("Empirical mean:", np.mean(samples, axis=0))
+print("Empirical variance:", np.var(samples, axis=0))
+print()
 
 num_chains = 15
 initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
@@ -131,8 +143,8 @@ num_tuning_rounds = 12
 
 samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target)
 samples = np.array(samples)
-print("Mean vector:", np.mean(samples, axis=0))
-print("Variance vector:", np.var(samples, axis=0))
+print("Experimental mean:", np.mean(samples, axis=0))
+print("Experimental variance:", np.var(samples, axis=0))
         
         
         

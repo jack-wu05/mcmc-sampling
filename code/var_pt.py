@@ -154,21 +154,21 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 # print("Kernel test p-value:", ks_result.pvalue)
 
 
-## Toy example
-def log_var_family(mu, sigma):
-    return lambda x: -0.5 * ((x-mu) / sigma)**2
+### Toy example
+# def log_var_family(mu, sigma):
+#     return lambda x: -0.5 * ((x-mu) / sigma)**2
 
-log_target = lambda x: -0.5 * ((x-10)/0.00001)**2  ## N(mu=10, std=0.00001) target
+# log_target = lambda x: -0.5 * ((x-10)/0.00001)**2  ## N(mu=10, std=0.00001) target
 
-num_chains = 15
-initial_state = [0.1] * num_chains
-num_tuning_rounds = 9
-initial_phi = (0,0.5)
+# num_chains = 15
+# initial_state = [0.1] * num_chains
+# num_tuning_rounds = 9
+# initial_phi = (0,0.5)
 
-samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
-print("Final reject rates:",rates)
-print("The mean is:", np.mean(samples))
-print("The var is:", np.var(samples))
+# samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
+# print("Final reject rates:",rates)
+# print("The mean is:", np.mean(samples))
+# print("The var is:", np.var(samples))
         
         
         
