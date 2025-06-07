@@ -17,8 +17,10 @@ s = 2
 
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
-    d = len(initial_x)
+    d = 4
+    
     samples = np.zeros((num_iters, d))
+    print(samples)
     
     for i in range(num_iters):
         new_point = np.zeros(d)
@@ -38,7 +40,7 @@ def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
 
 def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterations):
     num_distributions = len(betas)
-    d = len(initial_state[0])
+    d = 4
 
     samples = []
     reject_rates = np.zeros(num_distributions-1)
@@ -74,10 +76,11 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
 def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target):
     schedule = np.linspace(0, 1, num_chains)
     curr_state = initial_state
-    curr_reference = lambda x: multivariate_normal.pdf(np.array(x), [0,0], [[1,0],[0,1]])
+    
+    d = 4
+    curr_reference = lambda x: multivariate_normal.pdf(x, mean=np.zeros(d), cov=np.eye(d))
     
     toReturn = []
-    
     for r in range(1, num_tuning_rounds):
         T = 2**r
         
@@ -92,8 +95,11 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         
         schedule = var_pt.update_schedule(reject_rates, schedule)
         
-        cl_tree = var_pt.directed_graph(var_pt.tree_decomposition([chain[-1] for chain in samples]))
-        curr_reference = lambda x: tree_pdf(cl_tree, x)
+        if r >= 5:
+            cl_tree = gaussian_tree.directed_graph(
+                gaussian_tree.tree_decomposition(np.array([chain[-1] for chain in samples]))
+                )    
+            curr_reference = lambda x: gaussian_tree.tree_pdf(cl_tree, x)
         
         curr_state = samples[-1]
     
@@ -113,17 +119,20 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 # print("Kernel test p-value:", ks_result.pvalue)
 
 
-## Toy example
-log_target = lambda x: multivariate_normal.pdf(np.array(x), [0,0], [[10,9],[9,10]])
+### Toy example
+
+d = 4
+log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=np.zeros(d), cov=np.eye(d))
+
 
 num_chains = 15
-initial_state = [[0.25, 0.25]] * num_chains
-num_tuning_rounds = 9
+initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
+num_tuning_rounds = 12
 
 samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target)
-print("Final reject rates:",rates)
-print("The mean is:", np.mean(samples))
-print("The var is:", np.var(samples))
+samples = np.array(samples)
+print("Mean vector:", np.mean(samples, axis=0))
+print("Variance vector:", np.var(samples, axis=0))
         
         
         
