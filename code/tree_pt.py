@@ -13,7 +13,7 @@ import var_pt
 
 import matplotlib.pyplot as plt
 
-s = 2
+s = 0.7
 
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
@@ -56,7 +56,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
 
         for i in range(num_distributions-1):
             temp_alpha_vector[i] = nrpt.alpha(log_annealing_path[i], log_annealing_path[i+1], x_at_t[i], x_at_t[i+1])
-            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / 100
+            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / 1000
             
             if ((i%2==0 and t%2==0) or (i%2==1 and t%2==1)) and (np.random.rand() <= temp_alpha_vector[i]):
                 x_at_t[i], x_at_t[i+1] = x_at_t[i+1], x_at_t[i]
@@ -70,40 +70,59 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
     }
     
     
-## Variational PT implementation!
-def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target):
+## Tree PT implementation!
+def tree_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target):
     schedule = np.linspace(0, 1, num_chains)
     curr_state = initial_state
     
     d = 4
-    curr_reference = lambda x: multivariate_normal.pdf(x, mean=np.zeros(d), cov=np.eye(d))
+    reference = lambda x: multivariate_normal.logpdf(np.array(x), mean=np.zeros(d), cov=np.identity(d))
+    
+    Lambda_vs_r_points_TREE = []
     
     toReturn = []
-    for r in range(1, num_tuning_rounds):
+    for r in range(4, num_tuning_rounds):
+        print("-----","TUNING ROUND", r,"-----")
+        
         T = 2**r
         
-        path = nrpt.path(schedule, curr_reference, log_target)
+        path = nrpt.path(schedule, reference, log_target)
         
         result = vanilla_NRPT_with_RWMH(curr_state, schedule, path, T)
         reject_rates = result["reject_rates"]
         samples = result["samples"]
         
-        if r >= 5: 
-            for chain in samples: toReturn.append(chain[-1])
+        for chain in samples: toReturn.append(chain[-1])
+       
+        cl_tree = gaussian_tree.directed_graph(
+                gaussian_tree.tree_decomposition([chain[-1] for chain in samples])
+            )    
+        reference = lambda x: gaussian_tree.tree_pdf(cl_tree, x)
         
         schedule = var_pt.update_schedule(reject_rates, schedule)
-        
-        if r >= 5:
-            cl_tree = gaussian_tree.directed_graph(
-                gaussian_tree.tree_decomposition(np.array([chain[-1] for chain in samples]))
-            )    
-            curr_reference = lambda x: gaussian_tree.tree_pdf(cl_tree, x)
-        
         curr_state = samples[-1]
+        
+        print("Reject rates:",reject_rates)
+        print("Schedule:",schedule)
+        
+        ## Collect points for Lambda vs. r plot
+        Lambda_vs_r_points_TREE.append([r, np.sum(reject_rates / (1 - reject_rates))])
     
-    return toReturn, reject_rates
+    return toReturn, reject_rates, Lambda_vs_r_points_TREE
 
 
+def plot(points1, points2):
+    x1,y1 = zip(*points1)  
+    x2,y2 = zip(*points2)
+      
+    plt.figure()
+    plt.plot(x1,y1, marker='o', color='b')
+    plt.plot(x2,y2, marker = 'o', color='r')
+    plt.grid(True)
+    plt.show()
+    
+    
+    
 ## Kolmogorov-Smirnov test for correctness of Chow-Liu
 # log_gamma = lambda x: -x**2 / 2
 # num_samples = 3000
@@ -115,8 +134,11 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 
 # ks_result = ks_2samp(iid_samples, kernel_samples)
 # print("Kernel test p-value:", ks_result.pvalue)
-
-
+    
+    
+    
+    
+    
 ### Toy example
 d = 4
 mean = [1,2,3,4]
@@ -128,26 +150,32 @@ cov = np.array([
 ])
 log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=mean, cov=cov)
 
-
 samples = []
 for i in range(100000):
     sample = np.random.multivariate_normal(mean=mean, cov=cov)
     samples.append(sample)
-print("Empirical mean:", np.mean(samples, axis=0))
-print("Empirical variance:", np.var(samples, axis=0))
+print("True mean:", np.mean(samples, axis=0))
+print("True variance:", np.var(samples, axis=0))
 print()
+
+
 
 num_chains = 15
 initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
-num_tuning_rounds = 12
-
-samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target)
+num_tuning_rounds = 14
+samples, rates, Lambda_vs_r_points_TREE = tree_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target)
 samples = np.array(samples)
-print("Experimental mean:", np.mean(samples, axis=0))
-print("Experimental variance:", np.var(samples, axis=0))
-        
-        
-        
+print("Estimated mean:", np.mean(samples, axis=0))
+print("Estimated variance:", np.var(samples, axis=0))
+
+plot(Lambda_vs_r_points_TREE, Lambda_vs_r_points_VAR)
+
+
+
+
+
+
+
         
         
     
