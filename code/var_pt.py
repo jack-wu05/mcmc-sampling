@@ -10,7 +10,7 @@ import nrpt
 
 import matplotlib.pyplot as plt
 
-s = 2
+s = 0.7
 
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
@@ -119,9 +119,13 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
     curr_state = initial_state
     curr_phi = initial_phi
     
+    Lambda_vs_r_points_VAR = []
+    
     toReturn = []
     
-    for r in range(1, num_tuning_rounds):
+    for r in range(4, num_tuning_rounds):
+        print("-----","TUNING ROUND", r,"-----")
+        
         T = 2**r
         
         curr_var = log_var_family(curr_phi[0], curr_phi[1])
@@ -137,8 +141,14 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         schedule = update_schedule(reject_rates, schedule)
         curr_phi = update_reference([chain[-1] for chain in samples])
         curr_state = samples[-1]
+        
+        print("Reject rates:",reject_rates)
+        print("Schedule:",schedule)
+        
+        ## Collect points for Lambda vs. r plot
+        Lambda_vs_r_points_VAR.append([r, np.sum(reject_rates / (1 - reject_rates))])
     
-    return toReturn, reject_rates
+    return toReturn, reject_rates, Lambda_vs_r_points_VAR
 
 
 ## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
@@ -162,10 +172,10 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
 
 # num_chains = 15
 # initial_state = [0.1] * num_chains
-# num_tuning_rounds = 9
+# num_tuning_rounds = 14
 # initial_phi = (0,0.5)
 
-# samples, rates = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
+# samples, rates, Lambda_vs_r_points_VAR = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi)
 # print("Final reject rates:",rates)
 # print("The mean is:", np.mean(samples))
 # print("The var is:", np.var(samples))
