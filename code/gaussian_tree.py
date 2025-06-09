@@ -65,7 +65,7 @@ def mutual_info(node1, node2):
 def tree_decomposition(samples):
     global global_nodes
     
-    samples = np.array(samples)
+    samples = np.asarray(samples)
     nodes = [Node(str(i), np.array(list(samples[:,i]))) for i in range(samples.shape[1])]
     global_nodes = nodes.copy()
     
