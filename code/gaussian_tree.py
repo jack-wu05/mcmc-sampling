@@ -177,13 +177,3 @@ def tree_pdf(directed_tree, input_x):
     
     return pdf
 
-
-### Toy example 1
-# num_samples = 50
-# data = generate_data1(num_samples)
-# df = pd.DataFrame(data, columns=['X0', 'X1', 'X2', 'X3'])
-# tree = tree_decomposition(df)
-# directed_tree = directed_graph(tree)
-# input_x = np.array([0,0,0,0])
-# print("Density at input_x:", tree_pdf(directed_tree, input_x))
-# print()

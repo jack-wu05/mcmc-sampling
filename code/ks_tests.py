@@ -7,20 +7,6 @@ import var_pt
 
 
 
-### Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
-# log_gamma = lambda x: -x**2 / 2
-# num_samples = 3000
-# iid_samples = np.random.normal(size=num_samples)
-
-# kernel_samples = np.zeros(num_samples)
-# for i in range(num_samples):
-#     kernel_samples[i] = var_pt.RWMH_exploration_kernel(log_gamma, iid_samples[i], 4000)[-1]
-
-# ks_result = ks_2samp(iid_samples, kernel_samples)
-# print("Kernel test p-value:", ks_result.pvalue)
-
-
-
 ### Multivar KS test for correctness of Chow-Liu
 d = 4
 num_samples = 10
