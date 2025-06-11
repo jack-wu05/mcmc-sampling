@@ -128,7 +128,7 @@ def directed_graph(tree):
 
 
 ## Construct conditional pdf of two Normals: f(node1 = val1 | node2 = val2)
-def cond_gaussian(node1, node2, val1, val2):
+def log_cond_gaussian(node1, node2, val1, val2):
     X = np.asarray(node1.data)
     Y = np.asarray(node2.data)
     
@@ -142,7 +142,7 @@ def cond_gaussian(node1, node2, val1, val2):
     new_mu = mean_X + rho * (np.sqrt(var_X) / np.sqrt(var_Y)) * (val2 - mean_Y)
     new_sigma = (1-rho)**2 * var_X
     
-    return norm.pdf(val1, new_mu, new_sigma)
+    return norm.logpdf(val1, new_mu, new_sigma)
     
     
     # mean_XX, Sigma_XX = fit_gaussian(node1.data)    
@@ -160,20 +160,20 @@ def cond_gaussian(node1, node2, val1, val2):
     # return multivariate_normal.pdf(val1, mean=new_mu, cov=new_Sigma)
 
 
-## Evaluate approximate Chow-Liu joint density at input_x
+## Evaluate approximate log Chow-Liu joint density at input_x
 def tree_pdf(directed_tree, input_x):
     global global_nodes
     
-    pdf = 1
+    pdf = 0
     temp1, temp2 = fit_gaussian(global_nodes[0].data)
     # pdf *= multivariate_normal.pdf(input_x[0], temp1, temp2)
-    pdf *= norm.pdf(input_x[0], temp1, temp2)
+    pdf += norm.logpdf(input_x[0], temp1, temp2)
     
     for edge in list(directed_tree.edges()):
         parent = int(edge[0])
         child = int(edge[1])
         
-        pdf *= cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
+        pdf += log_cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
     
     return pdf
 
@@ -187,9 +187,3 @@ def tree_pdf(directed_tree, input_x):
 # input_x = np.array([0,0,0,0])
 # print("Density at input_x:", tree_pdf(directed_tree, input_x))
 # print()
-
-
-## pdf hypothesis test
-## put this into variational PT
-## compare diagnostics
-## N(0,1) no tune, mean-field, dense, tree

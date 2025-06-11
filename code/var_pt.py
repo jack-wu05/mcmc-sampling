@@ -1,17 +1,11 @@
 import numpy as np
-import warnings
-from scipy.stats import ks_2samp
-warnings.filterwarnings("ignore")
 from scipy.interpolate import PchipInterpolator
-import pints
-import pints.toy
-from scipy.stats import multivariate_normal
+import matplotlib.pyplot as plt
 
 import nrpt
 
-import matplotlib.pyplot as plt
 
-s = 0.7
+s = 0.6
 
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
@@ -115,11 +109,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
 
         for i in range(num_distributions-1):
             temp_alpha_vector[i] = nrpt.alpha(log_annealing_path[i], log_annealing_path[i+1], x_at_t[i], x_at_t[i+1])
-            
-            if variation == False:
-                reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / 1000
-            else:
-                reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / 100
+            reject_rates[i] = reject_rates[i] + (1 - temp_alpha_vector[i]) / num_iterations
             
             if ((i%2==0 and t%2==0) or (i%2==1 and t%2==1)) and (np.random.rand() <= temp_alpha_vector[i]):
                 x_at_t[i], x_at_t[i+1] = x_at_t[i+1], x_at_t[i]
@@ -143,7 +133,7 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
     
     toReturn = []
     
-    for r in range(4, num_tuning_rounds):
+    for r in range(6, num_tuning_rounds):
         print("-----","TUNING ROUND", r,"-----")
         
         T = 2**r
@@ -170,65 +160,9 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         
         print("Reject rates:",reject_rates)
         print("Schedule:",schedule)
+        print()
         
         ## Collect points for Lambda vs. r plot
         Lambda_vs_r_points.append([r, np.sum(reject_rates / (1 - reject_rates))])
     
     return toReturn, reject_rates, Lambda_vs_r_points
-
-
-### Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
-# log_gamma = lambda x: -x**2 / 2
-# num_samples = 3000
-# iid_samples = np.random.normal(size=num_samples)
-
-# kernel_samples = np.zeros(num_samples)
-# for i in range(num_samples):
-#     kernel_samples[i] = RWMH_exploration_kernel(log_gamma, iid_samples[i], 4000)[-1]
-
-# ks_result = ks_2samp(iid_samples, kernel_samples)
-# print("Kernel test p-value:", ks_result.pvalue)
-
-
-### Toy examples
-def log_var_family(mu, cov):
-    return lambda x: multivariate_normal.logpdf(np.array(x), mean=mu, cov=cov)
-
-d = 4
-mean = np.array([1,2,3,4])
-cov = np.array([
-    [1.0,  0.8,  0.5,  0.3],
-    [0.8,  1.5,  0.6,  0.4],
-    [0.5,  0.6,  2.0,  0.7],
-    [0.3,  0.4,  0.7,  1.8]
-])
-log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=mean, cov=cov)
-
-num_chains = 15
-initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
-num_tuning_rounds = 10
-initial_phi = (np.zeros(d), np.eye(d))
-
-## Dense
-samples, rates, Lambda_vs_r_points_VAR_dense = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, 
-                                                                        log_var_family, initial_phi, diagonal=False, variation=True)
-print("Final reject rates:",rates)
-print("(Dense Gaussian) Estimated mean:", np.mean(samples, axis=0))
-print("(Dense Gaussian) Estimated variance:", np.var(samples, axis=0))
-
-
-## Mean-field
-samples, rates, Lambda_vs_r_points_VAR_diagonal = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, 
-                                                                           log_var_family, initial_phi, diagonal=True, variation=True)
-print("Final reject rates:",rates)
-print("(Mean-Field Gaussian) Estimated mean:", np.mean(samples, axis=0))
-print("(Mean-Field Gaussian) Estimated variance:", np.var(samples, axis=0))
-        
-
-## Fixed N(0,I)
-samples, rates, Lambda_vs_r_points_fixed = variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target,
-                                                                    log_var_family, initial_phi, diagonal=False, variation=False)
-print("Final reject rates:",rates)
-print("(Fixed Standard Gaussian) Estimated mean:", np.mean(samples, axis=0))
-print("(Fixed Standard Gaussian) Estimated variance:", np.var(samples, axis=0))
-        
