@@ -22,7 +22,7 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
         for init in range(num_distributions):
             log_gamma = log_annealing_path[init]
 
-            x_at_t[init] = var_pt.RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 60)[-1]
+            x_at_t[init] = var_pt.RWMH_exploration_kernel(log_gamma, x_at_tminus1[init], 50)[-1]
         
         temp_alpha_vector = np.zeros(num_distributions)
 
@@ -68,8 +68,8 @@ def tree_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target):
        
         cl_tree = gaussian_tree.directed_graph(
                 gaussian_tree.tree_decomposition([chain[-1] for chain in samples])
-            )    
-        reference = lambda x: gaussian_tree.tree_pdf(cl_tree, x)
+                )    
+        reference = lambda x: gaussian_tree.tree_logpdf(cl_tree, x)
         
         schedule = var_pt.update_schedule(reject_rates, schedule)
         curr_state = samples[-1]

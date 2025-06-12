@@ -26,13 +26,13 @@ def fit_gaussian(data):
     data = np.asarray(data)
     
     mean = np.mean(data)
-    cov = np.var(data)
+    std = np.std(data)
     
     # mean = np.mean(data, axis=0)
     # X = data - mean
     # cov = (X.T @ X) / (X.shape[0]-1)
     
-    return mean, cov
+    return mean, std
 
 
 ## Compute mutual information weight
@@ -140,7 +140,7 @@ def log_cond_gaussian(node1, node2, val1, val2):
     rho = np.corrcoef(X,Y)[0,1]
     
     new_mu = mean_X + rho * (np.sqrt(var_X) / np.sqrt(var_Y)) * (val2 - mean_Y)
-    new_sigma = (1-rho)**2 * var_X
+    new_sigma = np.sqrt((1-rho**2) * var_X)
     
     return norm.logpdf(val1, new_mu, new_sigma)
     
@@ -161,7 +161,7 @@ def log_cond_gaussian(node1, node2, val1, val2):
 
 
 ## Evaluate approximate log Chow-Liu joint density at input_x
-def tree_pdf(directed_tree, input_x):
+def tree_logpdf(directed_tree, input_x):
     global global_nodes
     
     pdf = 0

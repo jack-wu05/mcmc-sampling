@@ -111,27 +111,6 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 
 
 
-# ## Toy example
-# log_reference = lambda x: -2 * x**2     ## N(0,0.25) reference
-# log_target = lambda x: -x**2 / 2    ## N(0,1) target
-# annealing_sched = [0, 0.5, 1]
-# anneal_path = path(annealing_sched, log_reference, log_target)
-# initial_state = [0.1] * len(annealing_sched)
-# num_iterations = 10000
-# gradients = [
-#     lambda x: -4 * x,
-#     lambda x: -2.5 * x,
-#     lambda x: -x
-# ]    
-
-# result = vanilla_NRPT_with_RWMH(initial_state, annealing_sched, anneal_path, num_iterations, gradients)
-# last_samples = [chain[-1] for chain in result["samples"]]
-# print("The mean is:", np.mean(last_samples))
-# print("GCB estimate is:", np.sum(result["reject_rates"]))
-# print("Var is:", np.var(last_samples))
-
-
-
 # ## Kolmogorov-Smirnov test for kernel pi-invariance using N(0,1)
 # gradient = lambda x: -x
 # log_gamma = lambda x: -x**2 / 2
@@ -168,15 +147,6 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 # debug_PT(gradients, anneal_path, 2000, 4000, sigmas)
 
 
-
-# ## Visualize a non-linear geometric sequence in [0,1] for better betas
-# space = np.linspace(0, 1, num=50)
-# for i in range(len(space)):
-#     print(1 - np.exp(-space[i]))
-# print("=================")
-# print(space)
-
-
 # # Non-trivial use case for NRPT
 # log_reference = lambda x: -x**2 / 2     ## N(0,1) reference
 # log_target = lambda x: -500 * (x-10)**2     ## N(10,0.001) target
@@ -202,8 +172,4 @@ def vanilla_NRPT_with_HMC(initial_state, betas, log_annealing_path, num_iteratio
 # print("The mean is:", np.mean(last_samples))
 # print("GCB estimate is:", np.sum(result["reject_rates"]))
 # print("Var is:", np.var(last_samples))
-
-
-
-
 

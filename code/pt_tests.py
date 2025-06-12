@@ -44,7 +44,7 @@ log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=mean, cov=co
 
 num_chains = 15
 initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
-num_tuning_rounds = 8
+num_tuning_rounds = 12
 initial_phi = (np.zeros(d), np.eye(d))
 
 
@@ -90,5 +90,7 @@ samples = np.array(samples)
 print("(Tree) Estimated mean:", np.mean(samples, axis=0))
 print("(Tree) Estimated variance:", np.var(samples, axis=0))
 
+
+### Figure 1
 plot(Lambda_vs_r_points_TREE, Lambda_vs_r_points_VAR_dense, Lambda_vs_r_points_VAR_diagonal, Lambda_vs_r_points_fixed)
 
