@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import nrpt
 
 
-s = 0.6
-
+## Metropolis-Hastings random walk exploration kernel
 def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     curr_point = initial_x
     d = 4
@@ -16,7 +15,7 @@ def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
         new_point = np.zeros(d)
         
         for j in range(d):
-            new_point[j] = np.random.normal(curr_point[j], s, 1)
+            new_point[j] = np.random.normal(curr_point[j], 0.6, 1)
             
         p = min(1, np.exp(log_gamma(new_point)-log_gamma(curr_point)))
     
@@ -28,6 +27,7 @@ def RWMH_exploration_kernel(log_gamma, initial_x, num_iters):
     return samples
 
 
+## Utility for update_schedule
 def bisect(a, b, func, epsilon):
     if b-a >= epsilon:
         c = (a+b)/2
@@ -42,6 +42,7 @@ def bisect(a, b, func, epsilon):
         return (a+b)/2
 
 
+## Utility for update_schedule
 def interpolate(reject_rates, schedule):
     N = len(schedule)
     
@@ -58,6 +59,7 @@ def interpolate(reject_rates, schedule):
     return PchipInterpolator(schedule,lambda_hat)
     
 
+## Automatic schedule tuning
 def update_schedule(reject_rates, schedule):
     N = len(schedule)
     
@@ -74,11 +76,14 @@ def update_schedule(reject_rates, schedule):
     
     return new_schedule
 
-    
+
+## Update rule for dense reference
 def update_dense_reference(samples):
     samples = np.asarray(samples)
     return (np.mean(samples, axis=0), np.cov(samples.T))
 
+
+## Update rule for mean-field reference
 def update_diagonal_reference(samples):
     samples = np.asarray(samples)
     
@@ -89,6 +94,7 @@ def update_diagonal_reference(samples):
     return (np.mean(samples, axis=0), np.diag(variances))
 
 
+## Utility for variational_PT_with_RWMH
 def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterations):
     num_distributions = len(betas)
     d = 4
@@ -135,7 +141,10 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
         }
     
     
-## Variational PT implementation!
+##### Variational PT implementation!
+# colour "b" (black): has hit the reference
+# colour "w" (white): was black, and has hit the target
+# colour "g" (grey): neither
 def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, diagonal, variation):
     schedule = np.linspace(0, 1, num_chains)
     curr_state = [(point, "g") for point in initial_state]

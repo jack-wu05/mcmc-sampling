@@ -8,7 +8,8 @@ import var_pt
 import matplotlib.pyplot as plt
 
 
-## Tree PT implementation!
+##### Tree PT implementation!
+# See variational_PT_with_RWMH for comments
 def tree_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target):
     schedule = np.linspace(0, 1, num_chains)
     curr_state = [(point, "g") for point in initial_state]
