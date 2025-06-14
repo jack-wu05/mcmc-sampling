@@ -13,7 +13,7 @@ import var_pt
 def log_var_family(mu, cov):
     return lambda x: multivariate_normal.logpdf(np.array(x), mean=mu, cov=cov)
 
-def plot(points1, points2, points3, points4):
+def plot(points1, points2, points3, points4, metric):
     x1,y1 = zip(*points1)  
     x2,y2 = zip(*points2)
     x3,y3 = zip(*points3)
@@ -24,8 +24,8 @@ def plot(points1, points2, points3, points4):
     plt.plot(x2,y2, marker ='o', color='r', label='Dense Gaussian')
     plt.plot(x3,y3, marker='o', color='g', label='Mean-Field Gaussian')
     plt.plot(x4,y4, marker='o', color='c', label='Fixed N(0,I)')
-    plt.xlabel('Tuning round (r)')
-    plt.ylabel('GCB (Lambda)')
+    plt.xlabel('Tuning Round (r)')
+    plt.ylabel(metric)
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -59,8 +59,12 @@ print("True variance:", np.var(samples, axis=0))
 print()
 
 ### Dense
-samples, rates, Lambda_vs_r_points_VAR_dense = var_pt.variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, 
-                                                                               log_var_family, initial_phi, diagonal=False, variation=True)
+samples, rates, Lambda_vs_r_dense, NumRestarts_vs_r_dense, Tau_vs_r_dense= var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+                                                                                                           num_tuning_rounds, log_target,
+                                                                                                           log_var_family, initial_phi,
+                                                                                                           diagonal=False, variation=True)
+print("----------------------")
+print()
 print("Final reject rates:",rates)
 print("(Dense Gaussian) Estimated mean:", np.mean(samples, axis=0))
 print("(Dense Gaussian) Estimated variance:", np.var(samples, axis=0))
@@ -68,8 +72,12 @@ print()
 
 
 ### Mean-field
-samples, rates, Lambda_vs_r_points_VAR_diagonal = var_pt.variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, 
-                                                                                  log_var_family, initial_phi, diagonal=True, variation=True)
+samples, rates, Lambda_vs_r_diag, NumRestarts_vs_r_diag, Tau_vs_r_diag = var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+                                                                                                         num_tuning_rounds, log_target,
+                                                                                                         log_var_family, initial_phi, 
+                                                                                                         diagonal=True, variation=True)
+print("----------------------")
+print()
 print("Final reject rates:",rates)
 print("(Mean-Field Gaussian) Estimated mean:", np.mean(samples, axis=0))
 print("(Mean-Field Gaussian) Estimated variance:", np.var(samples, axis=0))
@@ -77,20 +85,32 @@ print()
 
 
 ### Fixed N(0,I)
-samples, rates, Lambda_vs_r_points_fixed = var_pt.variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target,
-                                                                           log_var_family, initial_phi, diagonal=False, variation=False)
+samples, rates, Lambda_vs_r_fixed, NumRestarts_vs_r_fixed, Tau_vs_r_fixed = var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+                                                                                                            num_tuning_rounds, log_target,
+                                                                                                            log_var_family, initial_phi, 
+                                                                                                            diagonal=False, variation=False)
+print("----------------------")
+print()
 print("Final reject rates:",rates)
 print("(Fixed Standard Gaussian) Estimated mean:", np.mean(samples, axis=0))
 print("(Fixed Standard Gaussian) Estimated variance:", np.var(samples, axis=0))
 print()
 
 ### Tree
-samples, rates, Lambda_vs_r_points_TREE = tree_pt.tree_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target)
+samples, rates, Lambda_vs_r_TREE, NumRestarts_vs_r_TREE, Tau_vs_r_TREE = tree_pt.tree_PT_with_RWMH(initial_state, num_chains, 
+                                                                                                   num_tuning_rounds, log_target)
+print("----------------------")
+print()
 samples = np.array(samples)
 print("(Tree) Estimated mean:", np.mean(samples, axis=0))
 print("(Tree) Estimated variance:", np.var(samples, axis=0))
 
 
 ### Figure 1
-plot(Lambda_vs_r_points_TREE, Lambda_vs_r_points_VAR_dense, Lambda_vs_r_points_VAR_diagonal, Lambda_vs_r_points_fixed)
+plot(Lambda_vs_r_TREE, Lambda_vs_r_dense, Lambda_vs_r_diag, Lambda_vs_r_fixed, metric='GCB (\u03BB)')
 
+### Figure 2
+plot(Tau_vs_r_TREE, Tau_vs_r_dense, Tau_vs_r_diag, Tau_vs_r_fixed, metric='Restart Rate (\u03C4)')
+
+### Figure 3
+plot(NumRestarts_vs_r_TREE, NumRestarts_vs_r_dense, NumRestarts_vs_r_diag, NumRestarts_vs_r_fixed, metric='Num Restarts')
