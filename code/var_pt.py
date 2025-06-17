@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.linalg as linalg
 from scipy.interpolate import PchipInterpolator
 import matplotlib.pyplot as plt
 
@@ -94,6 +95,16 @@ def update_diagonal_reference(samples):
     return (np.mean(samples, axis=0), np.diag(variances))
 
 
+## Compute forward KL(G0||G1), where Gaussian1 is reference, Gaussian0 is target
+def kl_div(mu0, Sigma0, mu1, Sigma1):
+    term1 = np.log(linalg.det(Sigma1) / linalg.det(Sigma0))
+    term2 = -1 * Sigma0.shape[0]
+    term3 = np.trace(linalg.inv(Sigma1) @ Sigma0)
+    term4 = (mu1 - mu0).T @ linalg.inv(Sigma1) @ (mu1 - mu0)
+    
+    return 0.5 * (term1 + term2 + term3 + term4)
+    
+
 ## Utility for variational_PT_with_RWMH
 def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterations):
     num_distributions = len(betas)
@@ -145,14 +156,18 @@ def vanilla_NRPT_with_RWMH(initial_state, betas, log_annealing_path, num_iterati
 # colour "b" (black): has hit the reference
 # colour "w" (white): was black, and has hit the target
 # colour "g" (grey): neither
-def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, initial_phi, diagonal, variation):
+def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_target, log_var_family, 
+                             initial_phi, diagonal, variation, target_mu, target_Sigma):
     schedule = np.linspace(0, 1, num_chains)
     curr_state = [(point, "g") for point in initial_state]
     curr_phi = initial_phi
+    d = 4
     
-    Lambda_vs_r_points = []
-    RestartRate_vs_r_points = []
-    NumRestarts_vs_r_points = []
+    Lambda_vs_r = []
+    RestartRate_vs_r = []
+    NumRestarts_vs_r = []
+    kl_vs_r = []
+    restarts_vs_cost = []
     
     toReturn = []
     
@@ -161,6 +176,7 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         
         curr_state = [(tup[0], "g") for tup in curr_state]
         T = 2**r
+        cost = 0
         
         curr_var = log_var_family(curr_phi[0], curr_phi[1])
         path = nrpt.path(schedule, curr_var, log_target)
@@ -175,26 +191,41 @@ def variational_PT_with_RWMH(initial_state, num_chains, num_tuning_rounds, log_t
         
         schedule = update_schedule(reject_rates, schedule)
         
+        
+        ## Collect points for KL vs. r plot
+        kl_vs_r.append([r, kl_div(target_mu, target_Sigma, curr_phi[0], curr_phi[1])])
+        
         if variation == True:
             if diagonal == True:
                 curr_phi = update_diagonal_reference([chain[-1][0] for chain in samples])
             else:
                 curr_phi = update_dense_reference([chain[-1][0] for chain in samples])
-            
+        
         curr_state = samples[-1]
+        
+        if variation == False:
+            cost += T*num_chains*d
+        else:
+            if diagonal == True:
+                cost += d + T*num_chains*d
+            else:
+                cost += d**3 + T*num_chains * d**2
         
         print("Reject rates:",reject_rates)
         print("Schedule:",schedule)
         print()
         
         ## Collect points for Lambda vs. r plot
-        Lambda_vs_r_points.append([r, np.sum(reject_rates / (1 - reject_rates))])
+        Lambda_vs_r.append([r, np.sum(reject_rates / (1 - reject_rates))])
         
         ## Collect points for Num Restarts vs. r plot
-        NumRestarts_vs_r_points.append([r, restarts])
+        NumRestarts_vs_r.append([r, restarts])
         
         ## Collect points for Tau vs. r plot
-        RestartRate_vs_r_points.append([r, restarts/T])
+        RestartRate_vs_r.append([r, restarts/T])
+        
+        ## Collect points for num restarts vs. O(cost) plot
+        restarts_vs_cost.append([cost, restarts])
     
     
-    return toReturn, reject_rates, Lambda_vs_r_points, NumRestarts_vs_r_points, RestartRate_vs_r_points
+    return toReturn, reject_rates, Lambda_vs_r, NumRestarts_vs_r, RestartRate_vs_r, kl_vs_r, restarts_vs_cost

@@ -13,7 +13,7 @@ import var_pt
 def log_var_family(mu, cov):
     return lambda x: multivariate_normal.logpdf(np.array(x), mean=mu, cov=cov)
 
-def plot(points1, points2, points3, points4, metric):
+def plot(points1, points2, points3, points4, xlabel, ylabel):
     x1,y1 = zip(*points1)  
     x2,y2 = zip(*points2)
     x3,y3 = zip(*points3)
@@ -24,8 +24,8 @@ def plot(points1, points2, points3, points4, metric):
     plt.plot(x2,y2, marker ='o', color='r', label='Dense Gaussian')
     plt.plot(x3,y3, marker='o', color='g', label='Mean-Field Gaussian')
     plt.plot(x4,y4, marker='o', color='c', label='Fixed N(0,I)')
-    plt.xlabel('Tuning Round (r)')
-    plt.ylabel(metric)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.legend()
     plt.grid(True)
     plt.show()
@@ -42,9 +42,9 @@ cov = np.array([
 ])
 log_target = lambda x: multivariate_normal.logpdf(np.array(x), mean=mean, cov=cov)
 
-num_chains = 15
+num_chains = 5
 initial_state = [[0.25, 0.25, 0.25, 0.25]] * num_chains
-num_tuning_rounds = 12
+num_tuning_rounds = 13
 initial_phi = (np.zeros(d), np.eye(d))
 
 
@@ -59,10 +59,12 @@ print("True variance:", np.var(samples, axis=0))
 print()
 
 ### Dense
-samples, rates, Lambda_vs_r_dense, NumRestarts_vs_r_dense, Tau_vs_r_dense= var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+samples, rates, Lambda_vs_r_dense, NumRestarts_vs_r_dense, Tau_vs_r_dense, kl_vs_r_dense, restarts_vs_cost_dense = var_pt.variational_PT_with_RWMH(
+                                                                                                           initial_state, num_chains, 
                                                                                                            num_tuning_rounds, log_target,
                                                                                                            log_var_family, initial_phi,
-                                                                                                           diagonal=False, variation=True)
+                                                                                                           diagonal=False, variation=True,
+                                                                                                           target_mu=mean, target_Sigma=cov)
 print("----------------------")
 print()
 print("Final reject rates:",rates)
@@ -72,10 +74,12 @@ print()
 
 
 ### Mean-field
-samples, rates, Lambda_vs_r_diag, NumRestarts_vs_r_diag, Tau_vs_r_diag = var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+samples, rates, Lambda_vs_r_diag, NumRestarts_vs_r_diag, Tau_vs_r_diag, kl_vs_r_diag, restarts_vs_cost_diag = var_pt.variational_PT_with_RWMH(
+                                                                                                         initial_state, num_chains, 
                                                                                                          num_tuning_rounds, log_target,
                                                                                                          log_var_family, initial_phi, 
-                                                                                                         diagonal=True, variation=True)
+                                                                                                         diagonal=True, variation=True,
+                                                                                                         target_mu=mean, target_Sigma=cov)
 print("----------------------")
 print()
 print("Final reject rates:",rates)
@@ -85,10 +89,12 @@ print()
 
 
 ### Fixed N(0,I)
-samples, rates, Lambda_vs_r_fixed, NumRestarts_vs_r_fixed, Tau_vs_r_fixed = var_pt.variational_PT_with_RWMH(initial_state, num_chains, 
+samples, rates, Lambda_vs_r_fixed, NumRestarts_vs_r_fixed, Tau_vs_r_fixed, kl_vs_r_fixed, restarts_vs_cost_fixed = var_pt.variational_PT_with_RWMH( 
+                                                                                                            initial_state, num_chains, 
                                                                                                             num_tuning_rounds, log_target,
                                                                                                             log_var_family, initial_phi, 
-                                                                                                            diagonal=False, variation=False)
+                                                                                                            diagonal=False, variation=False,
+                                                                                                            target_mu=mean, target_Sigma=cov)
 print("----------------------")
 print()
 print("Final reject rates:",rates)
@@ -97,8 +103,10 @@ print("(Fixed Standard Gaussian) Estimated variance:", np.var(samples, axis=0))
 print()
 
 ### Tree
-samples, rates, Lambda_vs_r_TREE, NumRestarts_vs_r_TREE, Tau_vs_r_TREE = tree_pt.tree_PT_with_RWMH(initial_state, num_chains, 
-                                                                                                   num_tuning_rounds, log_target)
+samples, rates, Lambda_vs_r_TREE, NumRestarts_vs_r_TREE, Tau_vs_r_TREE, kl_vs_r_TREE, restarts_vs_cost_TREE = tree_pt.tree_PT_with_RWMH(
+                                                                                                   initial_state, num_chains, 
+                                                                                                   num_tuning_rounds, log_target,
+                                                                                                   target_mu=mean, target_Sigma=cov)
 print("----------------------")
 print()
 samples = np.array(samples)
@@ -107,10 +115,16 @@ print("(Tree) Estimated variance:", np.var(samples, axis=0))
 
 
 ### Figure 1
-plot(Lambda_vs_r_TREE, Lambda_vs_r_dense, Lambda_vs_r_diag, Lambda_vs_r_fixed, metric='GCB (\u03BB)')
+plot(Lambda_vs_r_TREE, Lambda_vs_r_dense, Lambda_vs_r_diag, Lambda_vs_r_fixed, xlabel='Tuning Round (r)', ylabel='GCB (\u03BB)')
 
 ### Figure 2
-plot(Tau_vs_r_TREE, Tau_vs_r_dense, Tau_vs_r_diag, Tau_vs_r_fixed, metric='Restart Rate (\u03C4)')
+plot(Tau_vs_r_TREE, Tau_vs_r_dense, Tau_vs_r_diag, Tau_vs_r_fixed, xlabel='Tuning Round (r)', ylabel='Restart Rate (\u03C4)')
 
 ### Figure 3
-plot(NumRestarts_vs_r_TREE, NumRestarts_vs_r_dense, NumRestarts_vs_r_diag, NumRestarts_vs_r_fixed, metric='Num Restarts')
+plot(NumRestarts_vs_r_TREE, NumRestarts_vs_r_dense, NumRestarts_vs_r_diag, NumRestarts_vs_r_fixed, xlabel='Tuning Round (r)', ylabel='Num Restarts')
+
+### Figure 4
+plot(kl_vs_r_TREE, kl_vs_r_dense, kl_vs_r_diag, kl_vs_r_fixed, xlabel='Tuning Round (r)', ylabel='Forward KL Divergence')
+
+### Figure 5
+plot(restarts_vs_cost_TREE, restarts_vs_cost_dense, restarts_vs_cost_diag, restarts_vs_cost_fixed, xlabel = 'O(cost)', ylabel='Num Restarts')

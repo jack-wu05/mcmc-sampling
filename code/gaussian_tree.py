@@ -64,12 +64,32 @@ def tree_decomposition(samples):
             
             G.add_edge(node1.label, node2.label, weight= W[i,j])
     
-    edges = list(G.edges(data=True))
-    
     mst = nx.minimum_spanning_tree(G, algorithm='kruskal')
-    edges = list(mst.edges(data=True))
-    
+        
     return mst, nodes
+
+
+## Extract mu and covariance matrix from decomposed tree
+def extract_tree_params(nodes, tree):
+    d = len(nodes)
+    M = np.zeros((d,d))
+    edges = {(int(u),int(v)) for u,v in tree.edges()}
+    edges |= {(b,a) for a,b in edges}
+    
+    for i in range(d):
+        for j in range(d):
+            if i==j:
+                M[i][j] = np.var(nodes[i].data)
+                
+            if (i,j) in edges:
+                rho = np.corrcoef(nodes[i].data, nodes[j].data, rowvar=False)[0,1]
+                M[i][j] = rho.copy()
+
+    mu = np.array([node.mean for node in nodes])
+    
+    return mu, M
+
+
 
 
 ## Generate 2D data vectors from an already Gaussian and already tree-like dependency structure:
@@ -110,7 +130,7 @@ def log_cond_gaussian(node1, node2, val1, val2):
     var_X = (node1.std)**2
     var_Y = (node2.std)**2
     
-    rho = np.corrcoef(node1.data, node2.data)[0,1]
+    rho = np.corrcoef(node1.data, node2.data, rowvar=False)[0,1]
     
     new_mu = mean_X + rho * (np.sqrt(var_X) / np.sqrt(var_Y)) * (val2 - mean_Y)
     new_sigma = np.sqrt((1-rho**2) * var_X)
@@ -147,4 +167,3 @@ def tree_logpdf(directed_tree, input_x, global_nodes):
         density += log_cond_gaussian(global_nodes[child], global_nodes[parent], input_x[child], input_x[parent])
     
     return density
-
